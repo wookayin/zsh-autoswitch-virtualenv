@@ -33,9 +33,8 @@ function _check_venv_path()
 # Automatically switch virtualenv when .venv file detected
 function _check_venv()
 {
-  if [ "$PWD" != "$MYOLDPWD" ]; then
+  if [[ "$PWD" != "$MYOLDPWD" ]]; then
     MYOLDPWD="$PWD"
-
     SWITCH_TO=""
 
     # Get the .venv file, scanning parent directories
