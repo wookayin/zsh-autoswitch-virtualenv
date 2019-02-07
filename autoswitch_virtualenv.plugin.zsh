@@ -35,7 +35,6 @@ function _python_version() {
     fi
 }
 
-
 function _maybeworkon() {
     venv_name="$1"
     venv_type="$2"
@@ -46,18 +45,30 @@ function _maybeworkon() {
         DEFAULT_MESSAGE_FORMAT="${DEFAULT_MESSAGE_FORMAT/🐍/}"
     fi
 
-    if [[ -z "$VIRTUAL_ENV" || "$venv_name" != "$(basename $VIRTUAL_ENV)" ]]; then
+    venv_current=""
+    if [[ "$venv_type" != "conda" ]]; then
+        [[ -n "$VIRTUAL_ENV" ]] && venv_current="$(basename $VIRTUAL_ENV)"
+    else
+      venv_current="$CONDA_DEFAULT_ENV"
+    fi
 
-        venv_dir="$(_virtual_env_dir)/$venv_name"
+    if [[ "$venv_name" != "$venv_current" ]]; then
+        if [[ "$venv_type" != "conda" ]]; then
+            venv_dir="$(_virtual_env_dir)/$venv_name"
 
-        if [[ ! -d "$venv_dir" ]]; then
-            printf "Unable to find ${PURPLE}$venv_name${NORMAL} virtualenv\n"
-            printf "If the issue persists run ${PURPLE}rmvenv && mkvenv${NORMAL} in this directory\n"
-            return
+            if [[ ! -d "$venv_dir" ]]; then
+                printf "Unable to find ${PURPLE}$venv_name${NORMAL} virtualenv\n"
+                printf "If the issue persists run ${PURPLE}rmvenv && mkvenv${NORMAL} in this directory\n"
+                return
+            fi
+            py_bin="$venv_dir/bin/python"
+        else
+            # TODO autodetect
+            py_bin="$HOME/.anaconda3/envs/$venv_name/bin/python"
         fi
 
         if [ -z "$AUTOSWITCH_SILENT" ]; then
-            py_version="$(_python_version "$venv_dir/bin/python")"
+            py_version="$(_python_version "$py_bin")"
 
             message="${AUTOSWITCH_MESSAGE_FORMAT:-"$DEFAULT_MESSAGE_FORMAT"}"
             message="${message//\%venv_type/$venv_type}"
@@ -67,17 +78,24 @@ function _maybeworkon() {
         fi
 
         # Much faster to source the activate file directly rather than use the `workon` command
-        source "$(_virtual_env_dir)/$venv_name/bin/activate"
+        if [[ "$venv_type" != "conda" ]]; then
+          source "$(_virtual_env_dir)/$venv_name/bin/activate"
+        else
+          # TODO: check conda command
+          source activate "$venv_name"
+        fi
     fi
 }
 
-
-# Gives the path to the nearest parent .venv file or nothing if it gets to root
+# Gives the path to the nearest parent .venv or .condaenv file or nothing if it gets to root
 function _check_venv_path()
 {
     local check_dir="$1"
 
-    if [[ -f "${check_dir}/.venv" ]]; then
+    if [[ -f "${check_dir}/.condaenv" ]]; then
+        printf "${check_dir}/.condaenv"
+        return
+    elif [[ -f "${check_dir}/.venv" ]]; then
         printf "${check_dir}/.venv"
         return
     else
@@ -124,7 +142,12 @@ function check_venv()
     fi
 
     if [[ -n "$SWITCH_TO" ]]; then
-        _maybeworkon "$SWITCH_TO" "virtualenv"
+        if [[ "$venv_path" == *".condaenv" ]]; then
+          venv_type="conda"
+        else
+          venv_type="virtualenv"
+        fi
+        _maybeworkon "$SWITCH_TO" "$venv_type"
 
         # check if Pipfile exists rather than invoking pipenv as it is slow
     elif [[ -a "Pipfile" ]] && type "pipenv" > /dev/null; then
@@ -142,6 +165,8 @@ function _default_venv()
         _maybeworkon "$AUTOSWITCH_DEFAULTENV" "virtualenv"
     elif [[ -n "$VIRTUAL_ENV" ]]; then
         deactivate
+    elif [[ -n "$CONDA_DEFAULT_ENV" ]]; then
+        source deactivate
     fi
 }
 
