@@ -154,7 +154,8 @@ function check_venv()
         venv_path="$(PIPENV_IGNORE_VIRTUALENVS=1 pipenv --venv)"
         _maybeworkon "$(basename "$venv_path")" "pipenv"
     else
-        _default_venv
+        # Do not deactivate outside a project
+        #_default_venv
     fi
 }
 
