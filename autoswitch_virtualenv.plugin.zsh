@@ -81,8 +81,8 @@ function _maybeworkon() {
         if [[ "$venv_type" != "conda" ]]; then
           source "$(_virtual_env_dir)/$venv_name/bin/activate"
         else
-          # TODO: check conda command
-          source activate "$venv_name"
+          [[ -n "$CONDA_DEFAULT_ENV" ]] && conda deactivate
+          source ${${CONDA_EXE}/%conda/}activate "$venv_name"
         fi
     fi
 }
