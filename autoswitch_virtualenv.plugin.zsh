@@ -79,10 +79,12 @@ function _maybeworkon() {
 
         # Much faster to source the activate file directly rather than use the `workon` command
         if [[ "$venv_type" != "conda" ]]; then
-          source "$(_virtual_env_dir)/$venv_name/bin/activate"
+          source "$(_virtual_env_dir)/$venv_name/bin/activate" || \
+              true;  # the plugin.zsh should not return false upon init
         else
           [[ -n "$CONDA_DEFAULT_ENV" ]] && conda deactivate
-          source ${${CONDA_EXE}/%conda/}activate "$venv_name"
+          source ${${CONDA_EXE}/%conda/}activate "$venv_name" || \
+              true;  # the plugin.zsh should not return false upon init
         fi
     fi
 }
