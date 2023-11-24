@@ -54,10 +54,14 @@ function _maybeworkon() {
 
     if [[ "$venv_name" != "$venv_current" ]]; then
         if [[ "$venv_type" != "conda" ]]; then
-            venv_dir="$(_virtual_env_dir)/$venv_name"
+            if [[ -d "$venv_name" ]]; then
+                venv_dir="$venv_name"
+            else
+                venv_dir="$(_virtual_env_dir)/$venv_name"
+            fi
 
             if [[ ! -d "$venv_dir" ]]; then
-                printf "Unable to find ${PURPLE}$venv_name${NORMAL} virtualenv\n"
+                printf "Unable to find ${PURPLE}$venv_dir${NORMAL}\n"
                 printf "If the issue persists run ${PURPLE}rmvenv && mkvenv${NORMAL} in this directory\n"
                 return
             fi
@@ -79,7 +83,7 @@ function _maybeworkon() {
 
         # Much faster to source the activate file directly rather than use the `workon` command
         if [[ "$venv_type" != "conda" ]]; then
-          source "$(_virtual_env_dir)/$venv_name/bin/activate" || \
+          source "$venv_dir/bin/activate" || \
               true;  # the plugin.zsh should not return false upon init
         else
           [[ -n "$CONDA_DEFAULT_ENV" ]] && conda deactivate
@@ -98,6 +102,9 @@ function _check_venv_path()
         printf "${check_dir}/.condaenv"
         return
     elif [[ -f "${check_dir}/.venv" ]]; then
+        printf "${check_dir}/.venv"
+        return
+    elif [[ -f "${check_dir}/.venv/bin/python" ]]; then
         printf "${check_dir}/.venv"
         return
     else
@@ -131,12 +138,16 @@ function check_venv()
             printf "AUTOSWITCH WARNING: Virtualenv will not be activated\n\n"
             printf "Reason: Found a .venv file but it is not owned by the current user\n"
             printf "Change ownership of ${PURPLE}$venv_path${NORMAL} to ${PURPLE}'$USER'${NORMAL} to fix this\n"
-        elif ! [[ "$file_permissions" =~ ^[64][04][04]$ ]]; then
+        elif [[ -f "$venv_path" ]] && ! [[ "$file_permissions" =~ ^[64][04][04]$ ]]; then
             printf "AUTOSWITCH WARNING: Virtualenv will not be activated\n\n"
             printf "Reason: Found a .venv file with weak permission settings ($file_permissions).\n"
             printf "Run the following command to fix this: ${PURPLE}\"chmod 600 $venv_path\"${NORMAL}\n"
         else
-            SWITCH_TO="$(<"$venv_path")"
+            if [[ -d "$venv_path" ]]; then
+                SWITCH_TO="$venv_path"
+            else
+                SWITCH_TO="$(<"$venv_path")"
+            fi
         fi
     elif [[ -f "$PWD/requirements.txt" || -f "$PWD/setup.py" ]]; then
         printf "Python project detected. "
@@ -201,12 +212,12 @@ function rmvenv()
 # helper function to create a virtual environment for the current directory
 function mkvenv()
 {
-    if [[ -f ".venv" ]]; then
-        printf ".venv file already exists. If this is a mistake use the rmvenv command\n"
+    if [[ -d ".venv" || -f ".venv" ]]; then
+        printf ".venv already exists. If this is a mistake use the rmvenv command\n"
     else
         venv_name="$(basename $PWD)"
 
-        printf "Creating ${PURPLE}%s${NONE} virtualenv\n" "$venv_name"
+        printf "Creating ${PURPLE}%s${NORMAL} virtualenv\n" "$venv_name"
 
         # Copy parameters variable so that we can mutate it
         params=("${@[@]}")
@@ -215,16 +226,32 @@ function mkvenv()
             params+="--python=$AUTOSWITCH_DEFAULT_PYTHON"
         fi
 
-        if [[ ${params[(I)--verbose]} -eq 0 ]]; then
-            virtualenv $params "$(_virtual_env_dir)/$venv_name"
+        local venv_path
+        if [[ ${params[(I).venv]} -ne 0 ]]; then
+          venv_path=".venv"
+          unset params[${params[(I).venv]}]
         else
-            virtualenv $params "$(_virtual_env_dir)/$venv_name" > /dev/null
+          venv_path="$(_virtual_env_dir)/$venv_name"
         fi
 
-        printf "$venv_name\n" > ".venv"
-        chmod 600 .venv
+        if [[ ${params[(I)--verbose]} -eq 0 ]]; then
+            virtualenv $params "$venv_path"
+        else
+            virtualenv $params "$venv_path" > /dev/null
+        fi
 
-        _maybeworkon "$venv_name"
+        if [[ "$?" != 0 ]]; then
+          printf "ERROR: Failed to create an virtualenv. Try again with --verbose"
+          return 1;
+        fi
+
+        if [[ ! -d ".venv" ]]; then
+          printf "$venv_name\n" > ".venv"
+          chmod 600 .venv
+          _maybeworkon "$venv_name"
+        else
+          _maybeworkon "$(pwd)/.venv"
+        fi
 
         install_requirements
     fi
