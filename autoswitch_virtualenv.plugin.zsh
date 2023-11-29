@@ -1,10 +1,10 @@
 export AUTOSWITCH_VERSION='1.8.0'
 
-RED="\e[31m"
-GREEN="\e[32m"
-PURPLE="\e[35m"
-BOLD="\e[1m"
-NORMAL="\e[0m"
+local RED="\e[31m"
+local GREEN="\e[32m"
+local PURPLE="\e[35m"
+local BOLD="\e[1m"
+local NORMAL="\e[0m"
 
 
 if (! type "virtualenv" > /dev/null) && (! type "conda" > /dev/null); then
@@ -26,7 +26,7 @@ function _virtual_env_dir() {
 
 
 function _python_version() {
-    PYTHON_BIN="$1"
+    local PYTHON_BIN="$1"
     if [[ -f "$PYTHON_BIN" ]] then
         # For some reason python --version writes to stderr
         printf "%s" "$($PYTHON_BIN --version 2>&1)"
@@ -36,16 +36,18 @@ function _python_version() {
 }
 
 function _maybeworkon() {
-    venv_name="$1"
-    venv_type="$2"
+    local venv_name="$1"
+    local venv_type="$2"
+    local venv_dir
+    local py_bin
 
-    DEFAULT_MESSAGE_FORMAT="Switching %venv_type: ${BOLD}${PURPLE}%venv_name${NORMAL} ${GREEN}[🐍%py_version]${NORMAL}"
+    local DEFAULT_MESSAGE_FORMAT="Switching %venv_type: ${BOLD}${PURPLE}%venv_name${NORMAL} ${GREEN}[🐍%py_version]${NORMAL}"
     if [[ "$LANG" != *".UTF-8" ]]; then
         # Remove multibyte characters if the terminal does not support utf-8
         DEFAULT_MESSAGE_FORMAT="${DEFAULT_MESSAGE_FORMAT/🐍/}"
     fi
 
-    venv_current=""
+    local venv_current=""
     if [[ "$venv_type" != "conda" ]]; then
         [[ -n "$VIRTUAL_ENV" ]] && venv_current="$(basename $VIRTUAL_ENV)"
     else
@@ -68,9 +70,9 @@ function _maybeworkon() {
         fi
 
         if [ -z "$AUTOSWITCH_SILENT" ]; then
-            py_version="$(_python_version "$py_bin")"
+            local py_version="$(_python_version "$py_bin")"
 
-            message="${AUTOSWITCH_MESSAGE_FORMAT:-"$DEFAULT_MESSAGE_FORMAT"}"
+            local message="${AUTOSWITCH_MESSAGE_FORMAT:-"$DEFAULT_MESSAGE_FORMAT"}"
             message="${message//\%venv_type/$venv_type}"
             message="${message//\%venv_name/$venv_name}"
             message="${message//\%py_version/$py_version}"
@@ -115,8 +117,8 @@ function _check_venv_path()
 # Automatically switch virtualenv when .venv file detected
 function check_venv()
 {
-    SWITCH_TO=""
-    VIRTUALENV_DIR=""
+    local SWITCH_TO=""
+    local VIRTUALENV_DIR=""
 
     # Get the .venv file, scanning parent directories
     venv_path=$(_check_venv_path "$PWD")
