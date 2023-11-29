@@ -54,11 +54,7 @@ function _maybeworkon() {
 
     if [[ "$venv_name" != "$venv_current" ]]; then
         if [[ "$venv_type" != "conda" ]]; then
-            if [[ -d "$venv_name" ]]; then
-                venv_dir="$venv_name"
-            else
-                venv_dir="$(_virtual_env_dir)/$venv_name"
-            fi
+            venv_dir="$(_virtual_env_dir)/$venv_name"
 
             if [[ ! -d "$venv_dir" ]]; then
                 printf "Unable to find ${PURPLE}$venv_dir${NORMAL}\n"
@@ -120,6 +116,7 @@ function _check_venv_path()
 function check_venv()
 {
     SWITCH_TO=""
+    VIRTUALENV_DIR=""
 
     # Get the .venv file, scanning parent directories
     venv_path=$(_check_venv_path "$PWD")
@@ -144,7 +141,7 @@ function check_venv()
             printf "Run the following command to fix this: ${PURPLE}\"chmod 600 $venv_path\"${NORMAL}\n"
         else
             if [[ -d "$venv_path" ]]; then
-                SWITCH_TO="$venv_path"
+                VIRTUALENV_DIR="$venv_path"
             else
                 SWITCH_TO="$(<"$venv_path")"
             fi
@@ -154,7 +151,10 @@ function check_venv()
         printf "Run ${PURPLE}mkvenv${NORMAL} to setup autoswitching\n"
     fi
 
-    if [[ -n "$SWITCH_TO" ]]; then
+    if [[ -n "$VIRTUALENV_DIR" ]]; then
+        source "$VIRTUALENV_DIR/bin/activate" || \
+            true;
+    elif [[ -n "$SWITCH_TO" ]]; then
         if [[ "$venv_path" == *".condaenv" ]]; then
           venv_type="conda"
         else
@@ -306,3 +306,4 @@ if [[ -z "$DISABLE_AUTOSWITCH_VENV" ]]; then
     enable_autoswitch_virtualenv
     check_venv
 fi
+# vim: set ts=4 sts=4 sw=4:
