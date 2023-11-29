@@ -65,8 +65,7 @@ function _maybeworkon() {
             fi
             py_bin="$venv_dir/bin/python"
         else
-            # TODO autodetect
-            py_bin="$HOME/.anaconda3/envs/$venv_name/bin/python"
+            py_bin="${CONDA_EXE%/*/*}/envs/$venv_name/bin/python"
         fi
 
         if [ -z "$AUTOSWITCH_SILENT" ]; then
