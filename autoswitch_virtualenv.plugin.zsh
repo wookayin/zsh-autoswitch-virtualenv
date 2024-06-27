@@ -84,7 +84,7 @@ function _maybeworkon() {
               true;  # the plugin.zsh should not return false upon init
         else
           [[ -n "$CONDA_DEFAULT_ENV" ]] && conda deactivate
-          source ${${CONDA_EXE}/%conda/}activate "$venv_name" || \
+          ${CONDA_EXE:-conda} activate "$venv_name" || \
               true;  # the plugin.zsh should not return false upon init
         fi
     fi
