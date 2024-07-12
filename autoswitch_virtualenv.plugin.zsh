@@ -3,6 +3,7 @@ export AUTOSWITCH_VERSION='1.8.0'
 local RED="\e[31m"
 local GREEN="\e[32m"
 local PURPLE="\e[35m"
+local CYAN="\e[36m"
 local BOLD="\e[1m"
 local NORMAL="\e[0m"
 
@@ -31,7 +32,7 @@ function _python_version() {
         # For some reason python --version writes to stderr
         printf "%s" "$($PYTHON_BIN --version 2>&1)"
     else
-        printf "unknown"
+        printf "unknown ($PYTHON_BIN)"
     fi
 }
 
@@ -41,7 +42,7 @@ function _maybeworkon() {
     local venv_dir
     local py_bin
 
-    local DEFAULT_MESSAGE_FORMAT="Switching %venv_type: ${BOLD}${PURPLE}%venv_name${NORMAL} ${GREEN}[🐍%py_version]${NORMAL}"
+    local DEFAULT_MESSAGE_FORMAT="Switching %venv_type: ${BOLD}${PURPLE}%venv_name${NORMAL} ${GREEN}[🐍%py_version]${NORMAL} ${CYAN}%py_bin${NORMAL}"
     if [[ "$LANG" != *".UTF-8" ]]; then
         # Remove multibyte characters if the terminal does not support utf-8
         DEFAULT_MESSAGE_FORMAT="${DEFAULT_MESSAGE_FORMAT/🐍/}"
@@ -55,37 +56,29 @@ function _maybeworkon() {
     fi
 
     if [[ "$venv_name" != "$venv_current" ]]; then
+        local venv_activated=''
+        # try activating the environment first.
         if [[ "$venv_type" != "conda" ]]; then
-            venv_dir="$(_virtual_env_dir)/$venv_name"
-
-            if [[ ! -d "$venv_dir" ]]; then
-                printf "Unable to find ${PURPLE}$venv_dir${NORMAL}\n"
-                printf "If the issue persists run ${PURPLE}rmvenv && mkvenv${NORMAL} in this directory\n"
-                return
-            fi
-            py_bin="$venv_dir/bin/python"
+          # Much faster to source the activate file directly rather than use the `workon` command
+          source "$venv_dir/bin/activate" && venv_activated=1 || \
+              true;  # the plugin.zsh should not return false upon init
         else
-            py_bin="${CONDA_EXE%/*/*}/envs/$venv_name/bin/python"
+          [[ -n "$CONDA_DEFAULT_ENV" ]] && conda deactivate;
+          ${CONDA_EXE:-conda} activate "$venv_name" && venv_activated=1 || \
+              true;  # the plugin.zsh should not return false upon init
         fi
 
-        if [ -z "$AUTOSWITCH_SILENT" ]; then
+        # Print some messages
+        if [ -n "$venv_activated" ] && [ -z "$AUTOSWITCH_SILENT" ]; then
+            py_bin="$(which python)"
             local py_version="$(_python_version "$py_bin")"
 
             local message="${AUTOSWITCH_MESSAGE_FORMAT:-"$DEFAULT_MESSAGE_FORMAT"}"
             message="${message//\%venv_type/$venv_type}"
             message="${message//\%venv_name/$venv_name}"
             message="${message//\%py_version/$py_version}"
+            message="${message//\%py_bin/$py_bin}"
             printf "${message}\n"
-        fi
-
-        # Much faster to source the activate file directly rather than use the `workon` command
-        if [[ "$venv_type" != "conda" ]]; then
-          source "$venv_dir/bin/activate" || \
-              true;  # the plugin.zsh should not return false upon init
-        else
-          [[ -n "$CONDA_DEFAULT_ENV" ]] && conda deactivate
-          ${CONDA_EXE:-conda} activate "$venv_name" || \
-              true;  # the plugin.zsh should not return false upon init
         fi
     fi
 }
