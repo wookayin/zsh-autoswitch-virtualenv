@@ -114,7 +114,10 @@ function check_venv()
 
     # Get the .venv file, scanning parent directories
     venv_path=$(_check_venv_path "$PWD")
+
     if [[ -n "$venv_path" ]]; then
+        # resolve symbolic link because symlinks have 777 permissions
+        venv_path=$(readlink -f "$venv_path")
 
         stat --version &> /dev/null
         if [[ $? -eq 0 ]]; then   # Linux, or GNU stat
