@@ -140,7 +140,8 @@ function check_venv()
             if [[ -d "$venv_path" ]]; then
                 VIRTUALENV_DIR="$venv_path"
             else
-                SWITCH_TO="$(<"$venv_path")"
+                # Read $venv_path (.condaenv, .venv). Exclude comments with prefix '#'
+                SWITCH_TO="$(/bin/cat "$venv_path" | grep -v '^#' | head -n1)"
             fi
         fi
     elif [[ -f "$PWD/requirements.txt" || -f "$PWD/setup.py" ]]; then
